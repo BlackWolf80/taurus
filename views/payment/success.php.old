@@ -1,0 +1,71 @@
+﻿<?php
+use yii\helpers\Url;
+use  yii\helpers\Html;
+use app\components\HitWidget;
+?>
+
+<div class="container">
+    <div class="row">
+        <div class="col-lg-12 contant_wrap">
+            <div class="navigation">
+                <ul>
+                    <li><a href="<?=Url::toRoute('site/index');?>"><i class="glyphicon glyphicon-home"></i></a></li>
+                    <li><span>Успешная оплата</span></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+<?
+
+// регистрационная информация (пароль #1)
+// registration info (password #1)
+//$mrh_pass1 = "V28Qk3CAom3FWzW5dbXV";
+if (Yii::$app->params['testRegim']==0){
+    $mrh_pass1 = Yii::$app->params['pass1'];
+}
+elseif (Yii::$app->params['testRegim']==1){
+    $mrh_pass1 = Yii::$app->params['pass1_t'];
+    $IsTest = 1;
+}
+
+
+// чтение параметров
+// read parameters
+$out_summ = $_REQUEST["OutSum"];
+$inv_id = $_REQUEST["InvId"];
+$shp_item = $_REQUEST["Shp_item"];
+$crc = $_REQUEST["SignatureValue"];
+
+$crc = strtoupper($crc);
+
+$my_crc = strtoupper(md5("$out_summ:$inv_id:$mrh_pass1:Shp_item=$shp_item"));
+
+// проверка корректности подписи
+// check signature
+if ($my_crc != $crc)
+{
+    echo "bad sign\n";
+    exit();
+}
+
+// проверка наличия номера счета в истории операций
+// check of number of the order info in history of operations
+$f=@fopen("order.txt","r+") or die("error");
+
+while(!feof($f))
+{
+    $str=fgets($f);
+
+    $str_exp = explode(";", $str);
+    if ($str_exp[0]=="order_num :$inv_id") {
+        Yii::$app->db->createCommand ( "UPDATE orders SET debit = 1   WHERE id=  $inv_id" )->execute ();
+        echo "Операция прошла успешно\n";
+    }
+
+}
+fclose($f);
+
+
+?>
+
